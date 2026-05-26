@@ -5,7 +5,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-def render(df_raw, val_col, lsl, usl):
+# app.py와 개수를 똑같이 맞춰 TypeError 소멸시킴
+def render(df_raw, sg_col, val_col, lsl, usl, sigma_method):
     st.header("📊 2단계 대시보드: 통계적 정규성 검정 및 변환 가시화")
     
     p_value, is_normal = engine.run_normality_test(df_raw[val_col].values)
@@ -29,7 +30,6 @@ def render(df_raw, val_col, lsl, usl):
         fig_qq.update_layout(width=380, height=380)
         st.plotly_chart(fig_qq, use_container_width=True)
 
-    # 💡 [확충 핵심]: 강의록 28~29p 비대칭 분포 타파용 변환 전후 히스토그램 대조 대시보드 구현
     if not is_normal and (df_raw[val_col] > 0).all():
         st.subheader("🔄 강의록 28p 규격: Box-Cox 비선형 변환 전후 분포 패턴 정밀 비교")
         transformed_vals, lsl_t, usl_t, lambda_val = engine.apply_box_cox(df_raw[val_col].values, lsl, usl)
