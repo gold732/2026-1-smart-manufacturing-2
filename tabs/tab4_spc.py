@@ -31,7 +31,6 @@ def render(df_raw, sg_col, val_col):
     sub1, sub2 = names[0], names[1] if len(names) > 1 else 'MR'
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, subplot_titles=(f'{sub1} 관리도', f'{sub2} 관리도'))
     
-    # [수정 적용]: row=1, row=2 레이어의 엠베딩 점선 다중 믹싱 버그 차단 고정 배치
     for idx, c_df in enumerate([chart1, chart2], start=1):
         color = 'royalblue' if idx == 1 else 'purple'
         fig.add_trace(go.Scatter(x=c_df.index, y=c_df['point'], mode='lines+markers', name=sub1 if idx==1 else sub2, marker=dict(color=color)), row=idx, col=1)
