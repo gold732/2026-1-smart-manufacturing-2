@@ -4,7 +4,6 @@ from scipy.stats import shapiro, boxcox
 from scipy.special import gamma
 
 def calc_unbiased_const(const_name, n):
-    """표본 크기에 따른 불편화 보정 상수 연산 공식"""
     if n <= 1: return 1.0
     if const_name == 'd2':
         if n < 51:
@@ -19,7 +18,6 @@ def calc_unbiased_const(const_name, n):
     return 1.0
 
 def unbiased_coefficient_fallback(coef_name, m):
-    """관리도용 제어 계수 상수 테이블 매핑"""
     table = {
         'A2': {2: 1.880, 3: 1.023, 4: 0.729, 5: 0.577, 6: 0.483, 7: 0.419, 8: 0.373},
         'A3': {2: 2.659, 3: 1.954, 4: 1.628, 5: 1.427, 6: 1.287, 7: 1.182, 8: 1.099},
@@ -38,28 +36,32 @@ def unbiased_coefficient_fallback(coef_name, m):
     return 1.0 if coef_name in ['d2', 'B4', 'D4', 'A2', 'A3'] else 0.0
 
 def run_normality_test(values):
-    stat, p = shapiro(values)
+    cleaned_vals = values[np.isfinite(values)]
+    if len(cleaned_vals) < 3: return 0.0, False
+    stat, p = shapiro(cleaned_vals)
     return p, p >= 0.05
 
 def analyze_process_capability(df, sg_col, val_col, lsl, usl, method="Pooled Standard Deviation"):
-    """장단기 변동 및 공정능력지수 통합 연산"""
-    mean_sg = df.groupby(sg_col)[val_col].mean()
-    sigma_sg = df.groupby(sg_col)[val_col].std().fillna(0)
-    x_bar = df[val_col].mean()
-    sigma_hat = df[val_col].std(ddof=1)
+    df_clean = df.dropna(subset=[sg_col, val_col])
+    df_clean = df_clean[np.isfinite(df_clean[val_col])]
     
-    c4_overall = calc_unbiased_const('c4', len(df))
+    mean_sg = df_clean.groupby(sg_col)[val_col].mean()
+    sigma_sg = df_clean.groupby(sg_col)[val_col].std().fillna(0)
+    x_bar = df_clean[val_col].mean()
+    sigma_hat = df_clean[val_col].std(ddof=1)
+    
+    c4_overall = calc_unbiased_const('c4', len(df_clean))
     sigma_overall = sigma_hat / c4_overall if c4_overall > 0 else sigma_hat
     
-    subgroup_sizes = df[sg_col].value_counts()
+    subgroup_sizes = df_clean[sg_col].value_counts()
     m_size = int(subgroup_sizes.mode().iloc[0]) if not subgroup_sizes.mode().empty else 2
     
     if "Pooled" in method:
         sigma_p = np.sqrt(np.sum(sigma_sg**2) / len(sigma_sg))
-        c4_within = calc_unbiased_const('c4', len(df) - len(sigma_sg) + 1)
+        c4_within = calc_unbiased_const('c4', len(df_clean) - len(sigma_sg) + 1)
         sigma_within = sigma_p / c4_within if c4_within > 0 else sigma_p
     else:
-        r_sg = df.groupby(sg_col)[val_col].max() - df.groupby(sg_col)[val_col].min()
+        r_sg = df_clean.groupby(sg_col)[val_col].max() - df_clean.groupby(sg_col)[val_col].min()
         d2_const = unbiased_coefficient_fallback('d2', m_size)
         sigma_within = r_sg.mean() / d2_const if d2_const > 0 else sigma_hat
 
@@ -71,21 +73,25 @@ def analyze_process_capability(df, sg_col, val_col, lsl, usl, method="Pooled Sta
     return {"x_bar": x_bar, "sigma_overall": sigma_overall, "sigma_within": sigma_within, "Cp": Cp, "Cpk": Cpk, "Pp": Pp, "Ppk": Ppk}
 
 def apply_box_cox(values, lsl, usl):
-    transformed_vals, lambda_val = boxcox(values)
+    cleaned_vals = values[np.isfinite(values)]
+    transformed_vals, lambda_val = boxcox(cleaned_vals)
     def transform_value(x, lmbda):
         if lmbda == 0: return np.log(x)
         return (x**lmbda - 1) / lmbda
     return transformed_vals, transform_value(lsl, lambda_val), transform_value(usl, lambda_val), lambda_val
 
 def generate_value_chart_data(data, sg_col, val_col, chart_type='Xbar-R', window=3):
+    df_clean = data.dropna(subset=[sg_col, val_col])
+    df_clean = df_clean[np.isfinite(df_clean[val_col])]
+    
     sg = pd.DataFrame()
-    sg['Xbar'] = data.groupby(sg_col)[val_col].mean()
-    sg['n_i'] = data[sg_col].value_counts()
+    sg['Xbar'] = df_clean.groupby(sg_col)[val_col].mean()
+    sg['n_i'] = df_clean[sg_col].value_counts()
     subgroup_indices = sg.index.tolist()
     m_size = int(sg['n_i'].mode().iloc[0]) if not sg['n_i'].mode().empty else 1
     
     if chart_type == 'Xbar-R':
-        sg['R'] = data.groupby(sg_col)[val_col].max() - data.groupby(sg_col)[val_col].min()
+        sg['R'] = df_clean.groupby(sg_col)[val_col].max() - df_clean.groupby(sg_col)[val_col].min()
         Xbar_bar = sg['Xbar'].mean()
         R_bar = sg['R'].mean()
         A2 = unbiased_coefficient_fallback('A2', m_size)
@@ -95,7 +101,7 @@ def generate_value_chart_data(data, sg_col, val_col, chart_type='Xbar-R', window
         chart2 = pd.DataFrame({'point': sg['R'], 'CL': R_bar, 'LCL': D3 * R_bar, 'UCL': D4 * R_bar}, index=subgroup_indices)
         return chart1, chart2
     elif chart_type == 'Xbar-s':
-        sg['s'] = data.groupby(sg_col)[val_col].std(ddof=1).fillna(0)
+        sg['s'] = df_clean.groupby(sg_col)[val_col].std(ddof=1).fillna(0)
         Xbar_bar = sg['Xbar'].mean()
         s_bar = sg['s'].mean()
         A3 = unbiased_coefficient_fallback('A3', m_size)
@@ -105,13 +111,13 @@ def generate_value_chart_data(data, sg_col, val_col, chart_type='Xbar-R', window
         chart2 = pd.DataFrame({'point': sg['s'], 'CL': s_bar, 'LCL': B3 * s_bar, 'UCL': B4 * s_bar}, index=subgroup_indices)
         return chart1, chart2
     elif chart_type == 'I-MR':
-        Xbar = data[val_col].mean()
-        MR_i = data[val_col].rolling(window=window).apply(lambda x: x.max() - x.min())
+        Xbar = df_clean[val_col].mean()
+        MR_i = df_clean[val_col].rolling(window=window).apply(lambda x: x.max() - x.min())
         MR_bar = MR_i[window-1:].mean()
         D3 = unbiased_coefficient_fallback('D3', window)
         D4 = unbiased_coefficient_fallback('D4', window)
         d2 = unbiased_coefficient_fallback('d2', window)
-        chart1 = pd.DataFrame({'point': data[val_col], 'CL': Xbar, 'LCL': Xbar - 3 * MR_bar / d2, 'UCL': Xbar + 3 * MR_bar / d2}, index=data.index)
-        chart2 = pd.DataFrame({'point': MR_i, 'CL': MR_bar, 'LCL': D3 * MR_bar, 'UCL': D4 * MR_bar}, index=data.index)
+        chart1 = pd.DataFrame({'point': df_clean[val_col], 'CL': Xbar, 'LCL': Xbar - 3 * MR_bar / d2, 'UCL': Xbar + 3 * MR_bar / d2}, index=df_clean.index)
+        chart2 = pd.DataFrame({'point': MR_i, 'CL': MR_bar, 'LCL': D3 * MR_bar, 'UCL': D4 * MR_bar}, index=df_clean.index)
         return chart1, chart2
     return None, None
