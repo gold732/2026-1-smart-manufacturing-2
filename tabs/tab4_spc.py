@@ -4,7 +4,7 @@ import stats_engine as engine
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-def render(df_raw, sg_col, val_col, lsl, usl, sigma_method):
+def render(df_raw, sg_col, val_col):
     st.header("📉 4단계 대시보드: 계량형 Shewhart 변수 추적 관리도 모듈")
     
     chart_col1, chart_col2 = st.columns([4, 6])
@@ -22,9 +22,9 @@ def render(df_raw, sg_col, val_col, lsl, usl, sigma_method):
             if exclude_ooc:
                 cleaned_df = df_raw[~df_raw[sg_col].isin(ooc_points)].copy()
                 chart1, chart2 = engine.generate_value_chart_data(cleaned_df, sg_col, val_col, chart_type=chart_mode, window=window_param)
-                st.success("🔄 정제 완료: 부적합 변동 원인을 격리한 청정 상태 관리선이 대시보드에 리빌딩되었습니다.")
+                st.success("🔄 정제 완료: 부적합 변동 원인을 격리한 상태로 제어선이 재빌딩되었습니다.")
         else:
-            st.success("🎯 모든 공정 계측점이 관리선 내부의 우연 원인 스케일 하에서 안정 궤도로 기동 중입니다.")
+            st.success("🎯 모든 공정 계측점이 관리선 내부의 우연 원인 스케일 하에서 안정 구동 중입니다.")
 
     names = chart_mode.split('-')
     sub1, sub2 = names[0], names[1] if len(names) > 1 else 'MR'
@@ -42,5 +42,5 @@ def render(df_raw, sg_col, val_col, lsl, usl, sigma_method):
         fig.add_annotation(x=last, y=c_df['CL'].iloc[-1], text=f"CL={c_df['CL'].iloc[-1]:.2f}", showarrow=False, font=dict(color='green'), row=idx, col=1, xshift=35)
         fig.add_annotation(x=last, y=c_df['LCL'].iloc[-1], text=f"LCL={c_df['LCL'].iloc[-1]:.2f}", showarrow=False, font=dict(color='red'), row=idx, col=1, xshift=35)
 
-    fig.update_layout(height=600, showlegend=False, template='seaborn')
+    fig.update_layout(height=550, showlegend=False, template='seaborn')
     st.plotly_chart(fig, use_container_width=True)
