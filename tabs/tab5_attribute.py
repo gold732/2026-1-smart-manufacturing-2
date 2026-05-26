@@ -4,10 +4,10 @@ import pandas as pd
 import plotly.graph_objects as go
 
 def render(df_raw, sg_col, val_col):
-    st.header("🏷️ 5단계 대시보드: 계수형 불량/결함 전용 SPC 제어 차트 스크린")
-    st.write("강의록 2페이지 및 9~11페이지에 근거하여 불량 속성을 모니터링합니다.")
+    st.header("🏷️ 계수형 불량 및 결함 제어 차트")
+    st.write("부적합품 개수 및 결함 건수 속성을 통계적으로 선별하여 모니터링합니다.")
     
-    attr_mode = st.selectbox("계수형 불량 판단 관리도 아키텍처 지정", ["P 차트 (불량률 추적)", "NP 차트 (불량개수 추적)", "C 차트 (결점수 추적)", "U 차트 (단위당 결점수 추적)"])
+    attr_mode = st.selectbox("계수형 관리도 유형 선택", ["P 차트 (불량률)", "NP 차트 (불량개수)", "C 차트 (결점수)", "U 차트 (단위당 결점수)"])
     
     np.random.seed(42)
     size_sim = len(df_raw)
