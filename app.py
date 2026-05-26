@@ -26,10 +26,9 @@ uploaded_file = st.sidebar.file_uploader("CSV 혹은 엑셀 파일 업로드", t
 df_raw = pd.read_csv(uploaded_file) if uploaded_file else load_lecture_pvc_data()
 
 all_cols = df_raw.columns.tolist()
-sg_col = st.sidebar.selectbox("부분군(Subgroup) 식럼 선택", all_cols, index=0)
+sg_col = st.sidebar.selectbox("부분군(Subgroup) 식별 컬럼 선택", all_cols, index=0)
 val_col = st.sidebar.selectbox("계측 데이터(Value) 컬럼 선택", all_cols, index=1 if len(all_cols) > 1 else 0)
 
-# [안전 유도 가이드] 잘못된 데이터 타입 매핑 시 강제 정지 및 해결책 유도
 if not pd.api.types.is_numeric_dtype(df_raw[val_col]):
     st.sidebar.error("❌ 오류: 계측 데이터에 문자가 지정됨")
     st.error(f"⚠️ **[분석 조건 설정 오류]** 숫자가 아닌 문자열 컬럼(`{val_col}`)이 선택되어 분석을 진행할 수 없습니다.")
