@@ -4,7 +4,7 @@ from scipy.stats import shapiro, boxcox
 from scipy.special import gamma
 
 def calc_unbiased_const(const_name, n):
-    """강의록 08_공정능력분석 15~16페이지 수식 근사 모델 보존"""
+    """표본 크기에 따른 불편화 보정 상수 연산 공식"""
     if n <= 1: return 1.0
     if const_name == 'd2':
         if n < 51:
@@ -19,6 +19,7 @@ def calc_unbiased_const(const_name, n):
     return 1.0
 
 def unbiased_coefficient_fallback(coef_name, m):
+    """관리도용 제어 계수 상수 테이블 매핑"""
     table = {
         'A2': {2: 1.880, 3: 1.023, 4: 0.729, 5: 0.577, 6: 0.483, 7: 0.419, 8: 0.373},
         'A3': {2: 2.659, 3: 1.954, 4: 1.628, 5: 1.427, 6: 1.287, 7: 1.182, 8: 1.099},
@@ -40,17 +41,16 @@ def run_normality_test(values):
     stat, p = shapiro(values)
     return p, p >= 0.05
 
-def analyze_process_capability(df, sg_col, val_col, lsl, usl, method="Pooled Standard Deviation (합동표준편차)"):
+def analyze_process_capability(df, sg_col, val_col, lsl, usl, method="Pooled Standard Deviation"):
+    """장단기 변동 및 공정능력지수 통합 연산"""
     mean_sg = df.groupby(sg_col)[val_col].mean()
     sigma_sg = df.groupby(sg_col)[val_col].std().fillna(0)
     x_bar = df[val_col].mean()
     sigma_hat = df[val_col].std(ddof=1)
     
-    # 장기 변동
     c4_overall = calc_unbiased_const('c4', len(df))
     sigma_overall = sigma_hat / c4_overall if c4_overall > 0 else sigma_hat
     
-    # 단기 변동 조절 반영
     subgroup_sizes = df[sg_col].value_counts()
     m_size = int(subgroup_sizes.mode().iloc[0]) if not subgroup_sizes.mode().empty else 2
     
