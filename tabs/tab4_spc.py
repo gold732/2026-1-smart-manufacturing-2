@@ -31,12 +31,13 @@ def render(df_raw, sg_col, val_col):
     sub1, sub2 = names[0], names[1] if len(names) > 1 else 'MR'
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, subplot_titles=(f'{sub1} 관리도', f'{sub2} 관리도'))
     
+    # [수정 적용]: row=1, row=2 레이어의 엠베딩 점선 다중 믹싱 버그 차단 고정 배치
     for idx, c_df in enumerate([chart1, chart2], start=1):
         color = 'royalblue' if idx == 1 else 'purple'
         fig.add_trace(go.Scatter(x=c_df.index, y=c_df['point'], mode='lines+markers', name=sub1 if idx==1 else sub2, marker=dict(color=color)), row=idx, col=1)
-        fig.add_trace(go.Scatter(x=c_df.index, y=c_df['CL'], mode='lines', line=dict(color='green', dash='dashdot')), row=idx, col=1)
-        fig.add_trace(go.Scatter(x=c_df.index, y=c_df['LCL'], mode='lines', line=dict(color='red', dash='dot')), row=idx, col=1)
-        fig.add_trace(go.Scatter(x=c_df.index, y=c_df['UCL'], mode='lines', line=dict(color='magenta', dash='dot')), row=idx, col=1)
+        fig.add_trace(go.Scatter(x=c_df.index, y=c_df['CL'], mode='lines', line=dict(color='green', dash='dashdot'), showlegend=False), row=idx, col=1)
+        fig.add_trace(go.Scatter(x=c_df.index, y=c_df['LCL'], mode='lines', line=dict(color='red', dash='dot'), showlegend=False), row=idx, col=1)
+        fig.add_trace(go.Scatter(x=c_df.index, y=c_df['UCL'], mode='lines', line=dict(color='magenta', dash='dot'), showlegend=False), row=idx, col=1)
         
         last = c_df.index[-1]
         fig.add_annotation(x=last, y=c_df['UCL'].iloc[-1], text=f"UCL={c_df['UCL'].iloc[-1]:.2f}", showarrow=False, font=dict(color='magenta'), row=idx, col=1, xshift=35)
