@@ -35,7 +35,7 @@ def render(df_raw, sg_col, val_col):
         st.subheader("🔄 데이터 변환 전후 분포 패턴 정밀 비교")
         transformed_vals, lsl_t, usl_t, lambda_val = engine.apply_box_cox(df_raw[val_col].values, lsl, usl)
         
-        fig_compare = make_subplots(rows=1, cols=2, subplot_titles=('원본 비대칭 데이터 분포', f'Box-Cox 변환 후 정규화 분포 (λ = {lambda_val:.2f})'))
+        fig_compare = make_subplots(rows=1, cols=2, subplot_titles=('원본 데이터 분포', f'Box-Cox 변환 후 분포 (λ = {lambda_val:.2f})'))
         fig_compare.add_trace(go.Histogram(x=df_raw[val_col], name='원본', marker_color='indianred', opacity=0.7), row=1, col=1)
         fig_compare.add_trace(go.Histogram(x=transformed_vals, name='변환', marker_color='steelblue', opacity=0.7), row=1, col=2)
         fig_compare.update_layout(height=320, template='seaborn', showlegend=False)
