@@ -12,7 +12,6 @@ def render(df_raw, sg_col, val_col):
     lsl = st.session_state.get('lsl', 0)
     usl = st.session_state.get('usl', 0)
     sigma_method = st.session_state.get('sigma_method', "합동")
-    
     engine_method = "Pooled Standard Deviation" if "합동" in sigma_method else "Subgroup Range Average"
     
     p_value, is_normal = engine.run_normality_test(df_raw[val_col].values)
@@ -47,7 +46,7 @@ def render(df_raw, sg_col, val_col):
     else:
         grade, status, action = "불량 (4등급)", "공정능력 매우 부족함", "품질이 만족스럽지 못하므로 현황 조사, 원인 규명 및 규격의 재검토를 권장합니다."
 
-    st.success(f"**🏅 공정 품질 등급 판정 결과: {grade} ({status})**\n\n👉 **현장 종합 조치 권고사항:** {action}")
+    st.success(f"**🏅 품질 등급 판정 결과: {grade} ({status})**\n\n👉 **현장 종합 조치 권고사항:** {action}")
     
     fig = px.histogram(final_df, x=val_col, nbins=15, title="공정 통합 분포 및 확률밀도 오버레이 분석", opacity=0.5, template='seaborn')
     x_axis = np.linspace(final_df[val_col].min()*0.95, final_df[val_col].max()*1.05, 200)
