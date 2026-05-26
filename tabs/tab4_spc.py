@@ -4,13 +4,13 @@ import stats_engine as engine
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-def render(df_raw, sg_col, val_col):
+def render(df_raw, sg_col, val_col, lsl, usl, sigma_method):
     st.header("📉 4단계 대시보드: 계량형 Shewhart 변수 추적 관리도 모듈")
     
     chart_col1, chart_col2 = st.columns([4, 6])
     with chart_col1:
         chart_mode = st.selectbox("품질 관리 기법도 유형 선택", ["Xbar-R", "Xbar-s", "I-MR"])
-        window_param = st.slider("Individual Moving Range 이동 윈도우 크기(w)", 2, m_max:=10, 3) if chart_mode == "I-MR" else 3
+        window_param = st.slider("Individual Moving Range 이동 윈도우 크기(w)", 2, 10, 3) if chart_mode == "I-MR" else 3
         
     chart1, chart2 = engine.generate_value_chart_data(df_raw, sg_col, val_col, chart_type=chart_mode, window=window_param)
     ooc_points = chart1[(chart1['point'] > chart1['UCL']) | (chart1['point'] < chart1['LCL'])].index.tolist()
