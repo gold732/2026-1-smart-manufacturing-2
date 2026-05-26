@@ -127,4 +127,6 @@ def generate_value_chart_data(data, sg_col, val_col, chart_type='Xbar-R', window
         d2 = unbiased_coefficient_fallback('d2', window)
         
         chart1 = pd.DataFrame({'point': data[val_col], 'CL': Xbar, 'LCL': Xbar - 3 * MR_bar / d2, 'UCL': Xbar + 3 * MR_bar / d2}, index=data.index)
-        chart2 = pd.DataFrame({'point': MR_i, 'CL': MR_bar, 'L
+        chart2 = pd.DataFrame({'point': MR_i, 'CL': MR_bar, 'LCL': D3 * MR_bar, 'UCL': D4 * MR_bar}, index=data.index)
+        return chart1, chart2
+    return None, None
