@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
-def render(df_raw, sg_col, val_col, lsl, usl, sigma_method):
+def render(df_raw, sg_col, val_col):
     st.header("🏷️ 5단계 대시보드: 계수형 불량/결함 전용 SPC 제어 차트 스크린")
     st.write("강의록 2페이지 및 9~11페이지에 근거하여 불량 속성을 모니터링합니다.")
     
@@ -50,5 +50,5 @@ def render(df_raw, sg_col, val_col, lsl, usl, sigma_method):
     fig.add_hline(y=np.mean(ucl_val), line_color='magenta', line_dash='dot', annotation_text=f"UCL ({np.mean(ucl_val):.4f})")
     fig.add_hline(y=np.mean(lcl_val), line_color='red', line_dash='dot', annotation_text=f"LCL ({np.mean(lcl_val):.4f})")
     
-    fig.update_layout(title=f"계수형 품질 모니터링: {attr_mode} 가동 결과", template='seaborn', height=450)
+    fig.update_layout(title=f"계수형 품질 모니터링: {attr_mode} 가동 결과", template='seaborn', height=400)
     st.plotly_chart(fig, use_container_width=True)
