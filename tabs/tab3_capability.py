@@ -6,7 +6,8 @@ import plotly.express as px
 import stats_engine as engine
 
 def render(df_raw, sg_col, val_col):
-    st.header("📈 3단계 대시보드: 장단기 잠재 공정능력지수 분석 및 등급 조치")
+    st.header("📈 장단기 공정능력지수 분석 및 진단")
+    st.write("공정의 단기 잠재 능력과 장기 성능 변동을 정량화하고 품질 만족 한계를 진단합니다.")
     
     lsl = st.session_state.get('lsl', 0)
     usl = st.session_state.get('usl', 0)
@@ -36,17 +37,17 @@ def render(df_raw, sg_col, val_col):
     
     cp_score = metrics['Cpk']
     if cp_score >= 1.67:
-        grade, status, action = "최우수 (0등급)", "공정능력이 매우 충분함", "들쭉날쭉이 약간 커져도 걱정할 필요가 없다. 비용절감이나 관리의 간소화를 생각하도록 한다."
+        grade, status, action = "최우수 (0등급)", "공정능력이 매우 충분함", "변동이 약간 커져도 안전한 수준입니다. 관리의 간소화 및 공정 최적화를 검토하십시오."
     elif cp_score >= 1.33:
-        grade, status, action = "우수 (1등급)", "공정능력 충분함", "아주 이상적인 공정상황이므로 현재의 상태를 유지한다."
+        grade, status, action = "우수 (1등급)", "공정능력 충분함", "이상적인 공정 상황이므로 현재 가동 상태를 유지하십시오."
     elif cp_score >= 1.00:
-        grade, status, action = "보통 (2등급)", "공정능력이 충분하지는 않지만 그 정도면 괜찮다", "공정관리를 확실하게 하여 관리상태를 유지할 것. Cp가 1에 가까워지면 불량발생의 가능성이 있으므로 주의해야 한다."
+        grade, status, action = "보통 (2등급)", "공정능력이 충분하지는 않으나 가용 수준", "확실한 공정 관리가 필요합니다. 지수가 1에 가까워지면 불량이 발생할 수 있으므로 주의하십시오."
     elif cp_score >= 0.67:
-        grade, status, action = "부족 (3등급)", "공정능력이 모자란다", "불량품이 생기고 있다. 전체 선별, 공정의 개선, 관리가 필요하다."
+        grade, status, action = "부족 (3등급)", "공정능력이 모자람", "현재 불량이 발생하고 있습니다. 공정 개선 및 원인 분석이 시급합니다."
     else:
-        grade, status, action = "불량 (4등급)", "공정능력 매우 부족하다", "품질이 전혀 만족스럽지 않다. 서둘러 현황조사, 원인규명, 품질개선 같은 긴급 대책을 펴야 한다. 상한 하한 규격 값의 재검토도 해야 한다."
+        grade, status, action = "불량 (4등급)", "공정능력 매우 부족함", "품질이 만족스럽지 못하므로 현황 조사, 원인 규명 및 규격의 재검토를 권장합니다."
 
-    st.success(f"**🏅 강의록 9p 품질 판정 결과: {grade} ({status})**\n\n👉 **현장 시정 조치 지침:** {action}")
+    st.success(f"**🏅 공정 품질 등급 판정 결과: {grade} ({status})**\n\n👉 **현장 종합 조치 권고사항:** {action}")
     
     fig = px.histogram(final_df, x=val_col, nbins=15, title="공정 통합 분포 및 확률밀도 오버레이 분석", opacity=0.5, template='seaborn')
     x_axis = np.linspace(final_df[val_col].min()*0.95, final_df[val_col].max()*1.05, 200)
@@ -59,7 +60,7 @@ def render(df_raw, sg_col, val_col):
     fig.update_layout(height=380)
     st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("🧱 강의록 표준 사양: 부분군별 독립 그리드 히스토그램")
+    st.subheader("🧱 부분군별 독립 분포 비교 그리드")
     fig_facet = px.histogram(df_raw, x=val_col, facet_row=sg_col, nbins=15, opacity=0.6, template='seaborn', height=140 * df_raw[sg_col].nunique())
     fig_facet.add_vline(x=lsl, line_width=1.5, line_dash="dash", line_color="red")
     fig_facet.add_vline(x=usl, line_width=1.5, line_dash="dash", line_color="red")
