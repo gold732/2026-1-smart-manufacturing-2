@@ -99,3 +99,47 @@ with tab1:
     m_col1.metric("단기 잠재력 (산포 중심) Cp", f"{metrics['Cp']:.4f}")
     m_col2.metric("단기 실효 능력 (치우침 고려) Cpk", f"{metrics['Cpk']:.4f}")
     m_col3.metric("장기 잠재력 (종합 변동) Pp", f"{metrics['Pp']:.4f}")
+    m_col4.metric("장기 실효 능력 (종합 실효) Ppk", f"{metrics['Ppk']:.4f}")
+
+    # 💡 [버그 조치 완전 정제 완료]: 지저분한 레퍼런스 표를 삭제하고 시인성이 극대화된 처방 카드로 개편
+    cp_score = metrics['Cpk']
+    if cp_score >= 1.67:
+        grade, status, action = "최우수 (0등급)", "공정능력이 매우 충분함", "들쭉날쭉이 약간 커져도 걱정할 필요가 없다. 비용절감이나 관리의 간소화를 생각하도록 한다."
+    elif cp_score >= 1.33:
+        grade, status, action = "우수 (1등급)", "공정능력 충분함", "아주 이상적인 공정상황이므로 현재의 상태를 유지한다."
+    elif cp_score >= 1.00:
+        grade, status, action = "보통 (2등급)", "공정능력이 충분하지는 않지만 그 정도면 괜찮다", "공정관리를 확실하게 하여 관리상태를 유지할 것. Cp가 1에 가까워지면 불량발생의 가능성이 있으므로 주의해야 한다."
+    elif cp_score >= 0.67:
+        grade, status, action = "부족 (3등급)", "공정능력이 모자란다", "불량품이 생기고 있다. 전체 선별, 공정의 개선, 관리가 필요하다."
+    else:
+        grade, status, action = "불량 (4등급)", "공정능력 매우 부족하다", "품질이 전혀 만족스럽지 않다. 서둘러 현황조사, 원인규명, 품질개선 같은 긴급 대책을 펴야 한다. 상한 하한 규격 값의 재검토도 해야 한다."
+
+    st.success(f"**🏅 공정 품질 등급 판정 결과: {grade} ({status})**\n\n👉 **종합 처방 조치 권고사항:** {action}")
+    
+    # 확장된 정규분포 연속 PDF 곡선 오버레이 시각화 대시보드 출력
+    fig_hist = vis.plot_process_capability_histogram(final_df, val_col, final_lsl, final_usl, metrics)
+    st.plotly_chart(fig_hist, use_container_width=True)
+
+with tab2:
+    st.header("📉 4단계: Shewhart 제어 모니터링 관리도 (Statistical Process Control)")
+    chart_mode = st.selectbox("가동 모니터링 관리도 유형 커스텀 선택", ["Xbar-R", "Xbar-s", "I-MR"])
+
+    window_param = 3
+    if chart_mode == "I-MR":
+        window_param = st.slider("Individual Moving Range 이동 윈도우 크기(w) 설정", min_value=2, max_value=10, value=3)
+
+    chart1, chart2 = engine.generate_value_chart_data(df_raw, sg_col, val_col, chart_type=chart_mode, window=window_param)
+    ooc_points = chart1[(chart1['point'] > chart1['UCL']) | (chart1['point'] < chart1['LCL'])].index.tolist()
+
+    if ooc_points:
+        st.error(f"🚨 [이상 원인 탐지 알림]: 관리 한계(Control Limits)를 이탈한 부적합 부분군 노드 발견: {ooc_points}")
+        exclude_ooc = st.checkbox("이상 부분군 제거 후 관리도 재작성 가동 (강의록 23페이지 구현)")
+        if exclude_ooc:
+            cleaned_df = df_raw[~df_raw[sg_col].isin(ooc_points)].copy()
+            chart1, chart2 = engine.generate_value_chart_data(cleaned_df, sg_col, val_col, chart_type=chart_mode, window=window_param)
+            st.success(f"이상 부분군 제거 완료: {len(df_raw)}개 행 -> {len(cleaned_df)}개 행으로 재작성 가동")
+    else:
+        st.success("🎯 모든 계측 데이터가 관리 한계선 내부에서 안정적으로 주행 중입니다.")
+
+    fig_control = vis.plot_control_chart_dashboard(chart1, chart2, chart_type=chart_mode)
+    st.plotly_chart(fig_control, use_container_width=True)
