@@ -5,30 +5,31 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 def render(df_raw, sg_col, val_col):
-    st.header("📉 4단계 대시보드: 계량형 Shewhart 변수 추적 관리도 모듈")
+    st.header("📉 계량형 Shewhart 변수 제어 관리도")
+    st.write("우연 원인과 이상 원인을 식별 차단하여 공정을 통계적 안정 상태로 유도합니다.")
     
     chart_col1, chart_col2 = st.columns([4, 6])
     with chart_col1:
-        chart_mode = st.selectbox("품질 관리 기법도 유형 선택", ["Xbar-R", "Xbar-s", "I-MR"])
-        window_param = st.slider("Individual Moving Range 이동 윈도우 크기(w)", 2, 10, 3) if chart_mode == "I-MR" else 3
+        chart_mode = st.selectbox("관리도 유형 선택", ["Xbar-R", "Xbar-s", "I-MR"])
+        window_param = st.slider("이동 범위 분석 윈도우 크기(w)", 2, 10, 3) if chart_mode == "I-MR" else 3
         
     chart1, chart2 = engine.generate_value_chart_data(df_raw, sg_col, val_col, chart_type=chart_mode, window=window_param)
     ooc_points = chart1[(chart1['point'] > chart1['UCL']) | (chart1['point'] < chart1['LCL'])].index.tolist()
     
     with chart_col2:
         if ooc_points:
-            st.error(f"🚨 [이상점 포착] 관리 한계를 이탈한 이상 변동 부분군 발견: {ooc_points}")
-            exclude_ooc = st.checkbox("강의록 23p: 이상 변동 로트 제거 후 제어 한계선 재산출 반영")
+            st.error(f"🚨 [이상 원인 포착] 관리 한계를 이탈한 이상 변동 부분군 발견: {ooc_points}")
+            exclude_ooc = st.checkbox("이상 부분군 제거 후 관리 한계선 재산출 반영")
             if exclude_ooc:
                 cleaned_df = df_raw[~df_raw[sg_col].isin(ooc_points)].copy()
                 chart1, chart2 = engine.generate_value_chart_data(cleaned_df, sg_col, val_col, chart_type=chart_mode, window=window_param)
-                st.success("🔄 정제 완료: 부적합 변동 원인을 격리한 상태로 제어선이 재빌딩되었습니다.")
+                st.success("🔄 정제 완료: 부적합 변동 원인을 제외한 새로운 안정 관리선이 적용되었습니다.")
         else:
-            st.success("🎯 모든 공정 계측점이 관리선 내부의 우연 원인 스케일 하에서 안정 구동 중입니다.")
+            st.success("🎯 모든 공정 계측점이 관리 한계선 내부에서 안정적으로 구동 중입니다.")
 
     names = chart_mode.split('-')
     sub1, sub2 = names[0], names[1] if len(names) > 1 else 'MR'
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, subplot_titles=(f'{sub1} 관리 추세', f'{sub2} 산포 추세'))
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, subplot_titles=(f'{sub1} 관리도', f'{sub2} 관리도'))
     
     for idx, c_df in enumerate([chart1, chart2], start=1):
         color = 'royalblue' if idx == 1 else 'purple'
