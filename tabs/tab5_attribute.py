@@ -1,6 +1,4 @@
 import streamlit as st
-import numpy as np
-import pandas as pd
 import plotly.graph_objects as go
 import stats_engine as engine
 
@@ -16,8 +14,8 @@ def render(df_raw, sg_col, val_col):
     res_df = engine.generate_attribute_chart_data(df_raw, sg_col, val_col, chart_type=target_mode)
     
     fig = go.Figure()
-    
     color_map = {"P": "darkorange", "NP": "crimson", "C": "indigo", "U": "teal"}
+    
     fig.add_trace(go.Scatter(x=res_df.index, y=res_df['point'], mode='lines+markers', name='측정치', marker=dict(color=color_map[target_mode])))
     fig.add_trace(go.Scatter(x=res_df.index, y=res_df['UCL'], mode='lines', line=dict(color='magenta', dash='dot'), name='UCL'))
     fig.add_trace(go.Scatter(x=res_df.index, y=res_df['LCL'], mode='lines', line=dict(color='red', dash='dot'), name='LCL'))
