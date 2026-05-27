@@ -1,15 +1,13 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import stats_engine as engine  # 통계 연산은 메인에서만 유일하게 실행
 from tabs import tab1_summary, tab2_norm, tab3_capability, tab4_spc, tab5_attribute
 
-st.set_page_config(layout="wide", page_title="공정품질 분석 종합 플랫폼")
+st.set_page_config(layout="wide", page_title="공정품질 분석 대시보드")
 
 st.title("🏭 공정능력분석 & 통계적 공정관리(SPC) 통합 플랫폼")
 st.write("실시간 수집 데이터 기반 통합 분석 및 품질 리포팅 시스템")
 
-# --- 1. 사이드바 제어반 ---
 st.sidebar.header("📁 데이터 분석 조건 설정")
 
 @st.cache_data
@@ -37,48 +35,35 @@ if not pd.api.types.is_numeric_dtype(df_raw[val_col]):
     st.info("💡 **조치 가이드:** 왼쪽 제어반에서 **'계측 데이터 컬럼 선택'** 상자를 실제 숫자가 들어있는 컬럼으로 변경해 주십시오.")
     st.stop()
 
-sigma_method = st.sidebar.radio(
+st.session_state['sigma_method'] = st.sidebar.radio(
     "단기 변동(σ_within) 산출 방식", 
     ["합동 표준편차 방식 (Pooled Standard Deviation)", "부분군 범위 평균 방식 (R-bar 방식)"]
 )
 
-target_val = st.sidebar.number_input("목표값(Target)", value=3500.0 if val_col == 'viscocity' else round(float(df_raw[val_col].mean()), 2))
-tolerance = st.sidebar.number_input("허용 공차(±Tolerance)", value=500.0 if val_col == 'viscocity' else round(float(df_raw[val_col].std() * 3), 2))
-lsl, usl = target_val - tolerance, target_val + tolerance
+default_mean = float(df_raw[val_col].mean())
+default_target = 3500.0 if val_col == 'viscocity' else round(default_mean, 2)
+default_tol = 500.0 if val_col == 'viscocity' else round(df_raw[val_col].std() * 3, 2)
+
+st.sidebar.subheader("🎯 공정 제어 한계 규격(Specification)")
+target_val = st.sidebar.number_input("목표값(Target)", value=default_target)
+tolerance = st.sidebar.number_input("허용 공차(±Tolerance)", value=default_tol)
+
+st.session_state['lsl'] = target_val - tolerance
+st.session_state['usl'] = target_val + tolerance
 
 st.sidebar.markdown(f"**확정 규격 상/하한값**")
-st.sidebar.info(f"🔴 **USL (규격상한)**: {usl:.2f} \n\n🔵 **LSL (규격하한)**: {lsl:.2f}")
+st.sidebar.info(f"🔴 **USL (규격상한)**: {st.session_state['usl']:.2f} \n\n🔵 **LSL (규격하한)**: {st.session_state['lsl']:.2f}")
 
-# --- 2. 메인 글로벌 통계 사전 연산 및 캐싱 레이어 ---
-engine_method = "Pooled Standard Deviation" if "합동" in sigma_method else "Subgroup Range Average"
-p_value, is_normal = engine.run_normality_test(df_raw[val_col].values)
-
-# 정규성에 따른 데이터셋 스케일 분기
-if is_normal:
-    final_df, final_lsl, final_usl, lambda_val = df_raw.copy(), lsl, usl, None
-else:
-    if (df_raw[val_col] <= 0).any():
-        final_df, final_lsl, final_usl, lambda_val = df_raw.copy(), lsl, usl, None
-    else:
-        t_vals, lsl_t, usl_t, lmbda = engine.apply_box_cox(df_raw[val_col].values, lsl, usl)
-        final_df = df_raw.copy()
-        final_df[val_col] = t_vals
-        final_lsl, final_usl, lambda_val = lsl_t, usl_t, lmbda
-
-metrics = engine.analyze_process_capability(final_df, sg_col, val_col, final_lsl, final_usl, method=engine_method)
-
-# --- 3. 5대 입체적 가시화 탭 라우팅 (계산 데이터 오브젝트 주입) ---
 t1, t2, t3, t4, t5 = st.tabs([
-    "🔍 데이터 구조 요약", "📊 정규성 분포 검증", "📈 공정능력평가(Cp/Cpk)", "📉 계량형 SPC 관리도", "🏷️ 계수형 불량 관리도"
+    "🔍 데이터 구조 요약", 
+    "📊 정규성 분포 검증", 
+    "📈 공정능력평가(Cp/Cpk)", 
+    "📉 계량형 SPC 관리도",
+    "🏷️ 계수형 불량 관리도"
 ])
 
-with t1:
-    tab1_summary.render(df_raw, sg_col, val_col)
-with t2:
-    tab2_norm.render(df_raw, val_col, p_value, is_normal, lambda_val, final_df, lsl, usl)
-with t3:
-    tab3_capability.render(df_raw, final_df, sg_col, val_col, lsl, usl, final_lsl, final_usl, metrics)
-with t4:
-    tab4_spc.render(df_raw, sg_col, val_col)
-with t5:
-    tab5_attribute.render(df_raw, sg_col, val_col)
+with t1: tab1_summary.render(df_raw, sg_col, val_col)
+with t2: tab2_norm.render(df_raw, sg_col, val_col)
+with t3: tab3_capability.render(df_raw, sg_col, val_col)
+with t4: tab4_spc.render(df_raw, sg_col, val_col)
+with t5: tab5_attribute.render(df_raw, sg_col, val_col)
