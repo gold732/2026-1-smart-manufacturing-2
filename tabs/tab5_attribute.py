@@ -25,5 +25,5 @@ def render(df_raw, sg_col, val_col):
     cl_mean = res_df['CL'].mean()
     fig.add_hline(y=cl_mean, line_color='green', line_dash='dashdot', annotation_text=f"CL ({cl_mean:.4f})")
     
-    fig.update_layout(title=f"계수형 품질 모니터링: {attr_mode} 분석 결과 리포트", template='seaborn', height=420)
+    fig.update_layout(title=f"계수형 품질 모니터링: {attr_mode} 분석 결과", template='seaborn', height=420)
     st.plotly_chart(fig, use_container_width=True)
