@@ -3,10 +3,30 @@ import numpy as np
 import scipy.stats as stats
 import plotly.graph_objects as go
 import plotly.express as px
+import stats_engine as engine
 
-def render(df_raw, final_df, sg_col, val_col, lsl, usl, final_lsl, final_usl, metrics):
+def render(df_raw, sg_col, val_col):
     st.header("📈 장단기 공정능력지수 분석 및 진단")
     st.write("공정의 단기 잠재 능력과 장기 성능 변동을 정량화하고 품질 만족 한계를 진단합니다.")
+    
+    lsl = st.session_state.get('lsl', 0)
+    usl = st.session_state.get('usl', 0)
+    sigma_method = st.session_state.get('sigma_method', "합동")
+    engine_method = "Pooled Standard Deviation" if "합동" in sigma_method else "Subgroup Range Average"
+    
+    p_value, is_normal = engine.run_normality_test(df_raw[val_col].values)
+    if is_normal:
+        final_df, final_lsl, final_usl = df_raw.copy(), lsl, usl
+    else:
+        if (df_raw[val_col] <= 0).any():
+            final_df, final_lsl, final_usl = df_raw.copy(), lsl, usl
+        else:
+            transformed, lsl_t, usl_t, lambda_val = engine.apply_box_cox(df_raw[val_col].values, lsl, usl)
+            final_df = df_raw.copy()
+            final_df[val_col] = transformed
+            final_lsl, final_usl = lsl_t, usl_t
+
+    metrics = engine.analyze_process_capability(final_df, sg_col, val_col, final_lsl, final_usl, method=engine_method)
     
     score_col1, score_col2, score_col3, score_col4 = st.columns(4)
     score_col1.metric("단기 잠재 능력 Cp", f"{metrics['Cp']:.4f}")
