@@ -3,15 +3,17 @@ import pandas as pd
 import numpy as np
 from tabs import tab1_summary, tab2_norm, tab3_capability, tab4_spc, tab5_attribute
 
-st.set_page_config(layout="wide", page_title="공정품질 분석 대시보드")
+st.set_page_config(layout="wide", page_title="공정품질 분석 종합 플랫폼")
 
 st.title("🏭 공정능력분석 & 통계적 공정관리(SPC) 통합 플랫폼")
 st.write("실시간 수집 데이터 기반 통합 분석 및 품질 리포팅 시스템")
 
+# --- 1. 사이드바: 글로벌 데이터 업로드 및 제어반 ---
 st.sidebar.header("📁 데이터 분석 조건 설정")
 
 @st.cache_data
 def load_lecture_pvc_data():
+    """샘플용 기본 PVC 점도 데이터셋 로드"""
     data = np.array([
         [3576.27, 3630.12, 3576.27, 3630.12, 3355.69, 3363.62],
         [3504.17, 3514.52, 3747.43, 3666.15, 3709.25, 3317.28],
@@ -29,6 +31,7 @@ all_cols = df_raw.columns.tolist()
 sg_col = st.sidebar.selectbox("부분군(Subgroup) 식별 컬럼 선택", all_cols, index=0)
 val_col = st.sidebar.selectbox("계측 데이터(Value) 컬럼 선택", all_cols, index=1 if len(all_cols) > 1 else 0)
 
+# [안전 방어 장치] 특성치에 텍스트 컬럼 매핑 시 하단 연산 진입을 차단하고 한글 가이드 유도
 if not pd.api.types.is_numeric_dtype(df_raw[val_col]):
     st.sidebar.error("❌ 오류: 계측 데이터에 문자가 지정됨")
     st.error(f"⚠️ **[분석 조건 설정 오류]** 숫자가 아닌 문자열 컬럼(`{val_col}`)이 선택되어 분석을 진행할 수 없습니다.")
@@ -54,6 +57,7 @@ st.session_state['usl'] = target_val + tolerance
 st.sidebar.markdown(f"**확정 규격 상/하한값**")
 st.sidebar.info(f"🔴 **USL (규격상한)**: {st.session_state['usl']:.2f} \n\n🔵 **LSL (규격하한)**: {st.session_state['lsl']:.2f}")
 
+# --- 2. 5대 입체적 시각화 대시보드 탭 배치 (구문 오류 완전 해결 및 배치 동기화) ---
 t1, t2, t3, t4, t5 = st.tabs([
     "🔍 데이터 구조 요약", 
     "📊 정규성 분포 검증", 
