@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
-from scipy.stats import shapiro, boxcox, norm
+from scipy.stats import shapiro, boxcox
 from scipy.special import gamma
 
 # ==========================================
-# 1. 통계적 불편화 상수 보정 모듈
+# 1. 품질 통계 불편화 계수 및 상수 보정 모듈
 # ==========================================
 
 def calc_unbiased_const(const_name, n):
@@ -12,249 +12,201 @@ def calc_unbiased_const(const_name, n):
     표본 크기에 따른 품질관리용 불편화 상수를 계산하거나 테이블에서 참조합니다.
     """
     try:
-        d_table = pd.read_csv('./data/unbiased_capability_analysis.csv')
-    except FileNotFoundError:
-        try:
-            d_table = pd.read_csv('../data/smart/unbiased_capability_analysis.csv')
-        except FileNotFoundError:
-            # 파일 누락 시를 대비한 수학적 공식 기반 Fallback 처리
-            if const_name == 'c4':
-                if n <= 1: return 1.0
-                return (np.sqrt(2) / np.sqrt(n - 1)) * (gamma(n / 2) / gamma((n - 1) / 2))
-            elif const_name == 'd2':
-                if n < 51:
-                    d2_dict = {2:1.128, 3:1.693, 4:2.059, 5:2.326, 6:2.534, 7:2.704, 8:2.847, 9:2.970, 10:3.078}
-                    return d2_dict.get(n, 3.4873 + 0.0250141 * n - 0.00009823 * n**2)
-                return 3.4873 + 0.0250141 * n - 0.00009823 * n**2
-            return None
+        d_table = pd.read_csv('unbiased_control_chart.csv')
+    except Exception:
+        if const_name == 'c4':
+            if n <= 1: return 1.0
+            return (np.sqrt(2) / np.sqrt(n - 1)) * (gamma(n / 2) / gamma((n - 1) / 2))
+        elif const_name == 'd2':
+            return 3.4873 + 0.0250141 * n - 0.00009823 * (n ** 2)
+        return 1.0
 
     n = int(n)
     if const_name == 'd2':
         if n < 51:
-            return d_table['d2'][n - 2]
-        return 3.4873 + 0.0250141 * n - 0.00009823 * n**2
-    elif const_name == 'd3':
-        if n < 26:
-            return d_table['d3'][n - 2]
-        return 0.80818 - 0.051871 * n + 0.00005096 * n**2 - 0.00000019 * n**3
-    elif const_name == 'd4':
-        if n < 26:
-            return d_table['d4'][n - 2]
-        return 2.88606 + 0.051313 * n - 0.00049243 * n**2 + 0.00000188 * n**3
-    elif const_name == 'c2':
-        return (np.sqrt(2) / np.sqrt(n)) * (gamma(n / 2) / gamma((n - 1) / 2))
-    elif const_name == 'c3':
-        c2 = (np.sqrt(2) / np.sqrt(n)) * (gamma(n / 2) / gamma((n - 1) / 2))
-        return np.sqrt((n - 1) / n - c2**2)
+            return float(d_table['d2'].iloc[n - 2])
+        return 3.4873 + 0.0250141 * n - 0.00009823 * (n ** 2)
     elif const_name == 'c4':
         return (np.sqrt(2) / np.sqrt(n - 1)) * (gamma(n / 2) / gamma((n - 1) / 2))
-    return None
+    return 1.0
 
 
-def unbiased_coefficient(coef_name, m):
+def unbiased_coefficient_fallback(coef_name, m):
     """
-    관리도 한계선 산출을 위한 관리도용 계표 상수를 매핑합니다.
+    관리도 한계선 산출을 위한 내장 상수를 매핑합니다.
     """
-    try:
-        d_table = pd.read_csv('./data/unbiased_control_chart.csv')
-    except FileNotFoundError:
-        try:
-            d_table = pd.read_csv('../data/smart/unbiased_control_chart.csv')
-        except FileNotFoundError:
-            # 안전한 연산을 위한 백업 테이블
-            fallback_chart = {
-                'A2': {2: 1.880, 3: 1.023, 4: 0.729, 5: 0.577, 6: 0.483},
-                'D3': {2: 0.0, 3: 0.0, 4: 0.0, 5: 0.0, 6: 0.0, 7: 0.076, 8: 0.136},
-                'D4': {2: 3.267, 3: 2.574, 4: 2.282, 5: 2.114, 6: 2.004}
-            }
-            if coef_name in fallback_chart:
-                return fallback_chart[coef_name].get(m, 1.0 if 'D4' in coef_name else 0.0)
-            return 1.0
+    table = {
+        'A2': {2: 1.880, 3: 1.023, 4: 0.729, 5: 0.577, 6: 0.483, 7: 0.419, 8: 0.373, 9: 0.337, 10: 0.308},
+        'A3': {2: 2.659, 3: 1.954, 4: 1.628, 5: 1.427, 6: 1.287, 7: 1.182, 8: 1.099, 9: 1.032, 10: 0.975},
+        'B3': {2: 0.0, 3: 0.0, 4: 0.0, 5: 0.0, 6: 0.030, 7: 0.118, 8: 0.185, 9: 0.239, 10: 0.284},
+        'B4': {2: 3.267, 3: 2.568, 4: 2.266, 5: 2.089, 6: 1.970, 7: 1.882, 8: 1.815, 9: 1.761, 10: 1.716},
+        'D3': {2: 0.0, 3: 0.0, 4: 0.0, 5: 0.0, 6: 0.0, 7: 0.076, 8: 0.136, 9: 0.184, 10: 0.223},
+        'D4': {2: 3.267, 3: 2.574, 4: 2.282, 5: 2.114, 6: 2.004, 7: 1.924, 8: 1.864, 9: 1.816, 10: 1.777},
+        'd2': {2: 1.128, 3: 1.693, 4: 2.059, 5: 2.326, 6: 2.534, 7: 2.704, 8: 2.847, 9: 2.970, 10: 3.078}
+    }
+    if coef_name in table and m in table[coef_name]:
+        return table[coef_name][m]
+    return 1.0
 
-    m = int(m)
-    if (coef_name in d_table.columns[1:]) and m >= 2 and m <= 25:
-        return d_table[coef_name][m - 2]
+
+# ==========================================
+# 2. 정규성 검정 및 변환 모듈 (UI 함수명 동기화)
+# ==========================================
+
+def run_normality_test(data_array):
+    """
+    Shapiro-Wilk 정규성 검정을 수행하여 p-value와 정규성 만족 여부를 반환합니다.
+    """
+    if len(data_array) < 3:
+        return 1.0, True
+    stat, p = shapiro(data_array)
+    return float(p), bool(p >= 0.05)
+
+
+def apply_box_cox(data_array, lsl_orig=None, usl_orig=None):
+    """
+    Box-Cox 변환을 수행하고, 입력된 규격 한계선(LSL/USL)을 동일 척도로 동시 변환합니다.
+    """
+    data_series = pd.Series(data_array)
+    if (data_series <= 0).any():
+        shift_val = abs(data_series.min()) + 1.0
+        data_to_transform = data_series + shift_val
+        if lsl_orig is not None: lsl_orig += shift_val
+        if usl_orig is not None: usl_orig += shift_val
     else:
-        return d_table[coef_name].iloc[-1]
+        data_to_transform = data_series
 
-
-# ==========================================
-# 2. 정규성 검정 및 변환 모듈
-# ==========================================
-
-def normality_test_and_transform(data_series, lsl_orig=None, usl_orig=None):
-    """
-    Shapiro-Wilk 정규성 검정을 수행하며, 기각 시 Box-Cox 변환 및 규격 한계를 동시 변환합니다.
-    """
-    stat, p = shapiro(data_series)
+    transformed_data, lambda_val = boxcox(data_to_transform)
     
-    if p >= 0.05:
-        return data_series, lsl_orig, usl_orig, p, False, 1.0
+    lsl_trans = lsl_orig
+    usl_trans = usl_orig
+    
+    if lambda_val == 0:
+        if lsl_orig is not None and lsl_orig > 0: lsl_trans = np.log(lsl_orig)
+        if usl_orig is not None and usl_orig > 0: usl_trans = np.log(usl_orig)
     else:
-        # 음수 데이터 포함 시 척도 시프트 처리
-        if (data_series <= 0).any():
-            shift_val = abs(data_series.min()) + 1.0
-            data_to_transform = data_series + shift_val
-            if lsl_orig is not None: lsl_orig += shift_val
-            if usl_orig is not None: usl_orig += shift_val
-        else:
-            data_to_transform = data_series
-
-        transformed_data, lambda_val = boxcox(data_to_transform)
+        if lsl_orig is not None and lsl_orig > 0: lsl_trans = (lsl_orig**lambda_val - 1) / lambda_val
+        if usl_orig is not None and usl_orig > 0: usl_trans = (usl_orig**lambda_val - 1) / lambda_val
         
-        # 데이터 스케일 변환에 따른 LSL / USL 동시 변환 로직
-        lsl_trans = lsl_orig
-        usl_trans = usl_orig
-        
-        if lambda_val == 0:
-            if lsl_orig is not None and lsl_orig > 0: lsl_trans = np.log(lsl_orig)
-            if usl_orig is not None and usl_orig > 0: usl_trans = np.log(usl_orig)
-        else:
-            if lsl_orig is not None and lsl_orig > 0: lsl_trans = (lsl_orig**lambda_val - 1) / lambda_val
-            if usl_orig is not None and usl_orig > 0: usl_trans = (usl_orig**lambda_val - 1) / lambda_val
-            
-        _, p_trans = shapiro(transformed_data)
-        return pd.Series(transformed_data, index=data_series.index), lsl_trans, usl_trans, p_trans, True, lambda_val
+    return transformed_data, lsl_trans, usl_trans, float(lambda_val)
 
 
 # ==========================================
-# 3. 공정능력분석(Process Capability) 모듈
+# 3. 공정능력분석 연산 모듈
 # ==========================================
 
-def process_capability(data, sg_name, var_name, LSL, USL):
+def calculate_capability_metrics(df, sg_col, val_col, lsl, usl, method="Pooled Standard Deviation"):
     """
-    단기 변동(군내) 및 장기 변동(전체) 표준편차를 분리하여 공정능력지수를 계산합니다.
+    군내 및 전체 표준편차를 기반으로 단기(Cp, Cpk) 및 장기(Pp, Ppk) 공정능력지수를 계산합니다.
     """
-    mean_sg = data.groupby(sg_name)[var_name].mean()
-    sigma_sg = data.groupby(sg_name)[var_name].std()
+    df_clean = df.dropna(subset=[sg_col, val_col])
+    x_bar = df_clean[val_col].mean()
     
-    n_i_counts = data[sg_name].value_counts()
-    m_mode = n_i_counts.mode()
-    m = int(m_mode.iloc[0]) if not m_mode.empty else int(len(data) / len(mean_sg))
+    sg_groups = df_clean.groupby(sg_col)[val_col]
+    sg_means = sg_groups.mean()
+    sg_stds = sg_groups.std(ddof=1).fillna(0)
+    sg_ranges = sg_groups.apply(lambda x: x.max() - x.min())
+    sg_sizes = sg_groups.size()
     
-    x_bar = data[var_name].mean()
-    sigma_hat = data[var_name].std(ddof=1)
+    m_size = int(sg_sizes.mode().iloc[0]) if not sg_sizes.empty else 5
     
-    c4_overall = calc_unbiased_const('c4', len(data))
+    # 1. 전체(장기) 변동 산출
+    sigma_hat = df_clean[val_col].std(ddof=1)
+    c4_overall = calc_unbiased_const('c4', len(df_clean))
     sigma_overall = sigma_hat / c4_overall if c4_overall else sigma_hat
     
-    # 합동 표준편차 산출 및 불편화 상수를 통한 군내 표준편차 추정
-    sigma_p = np.sqrt(np.sum(sigma_sg**2) / len(sigma_sg))
-    subgroup_delta_d = len(data) - len(sigma_sg) + 1
-    c4_within = calc_unbiased_const('c4', subgroup_delta_d)
-    sigma_within = sigma_p / c4_within if c4_within else sigma_p
-    
-    # Cp, Cpk 및 Pp, Ppk 지수 산출
-    Cp = (USL - LSL) / (6 * sigma_within) if LSL is not None and USL is not None else np.nan
-    Cpk = min((USL - x_bar) / (3 * sigma_within), (x_bar - LSL) / (3 * sigma_within)) if LSL is not None and USL is not None else np.nan
-    
-    Pp = (USL - LSL) / (6 * sigma_overall) if LSL is not None and USL is not None else np.nan
-    Ppk = min((USL - x_bar) / (3 * sigma_overall), (x_bar - LSL) / (3 * sigma_overall)) if LSL is not None and USL is not None else np.nan
-    
-    return Cp, Cpk, Pp, Ppk, x_bar, sigma_within, sigma_overall
+    # 2. 군내(단기) 변동 산출 방식 분기
+    if method == "Pooled Standard Deviation":
+        sigma_p = np.sqrt(np.sum(sg_stds**2) / len(sg_stds))
+        subgroup_delta_d = len(df_clean) - len(sg_stds) + 1
+        c4_within = calc_unbiased_const('c4', subgroup_delta_d)
+        sigma_within = sigma_p / c4_within if c4_within else sigma_p
+    else:
+        r_bar = sg_ranges.mean()
+        d2 = calc_unbiased_const('d2', m_size)
+        sigma_within = r_bar / d2 if d2 else r_bar
 
-
-# ==========================================
-# 4. 계량형 관리도(Variable Control Chart) 모듈
-# ==========================================
-
-def generate_value_chart(data, sg_name, var_name, chart_type='Xbar-R', window=3):
-    """
-    Xbar-R, Xbar-s, I-MR 관리도의 중심선 및 통계적 관리한계선을 생성합니다.
-    """
-    if chart_type == 'Xbar-R':
-        sg = pd.DataFrame()
-        sg['Xbar'] = data.groupby(sg_name)[var_name].mean()
-        sg['R'] = data.groupby(sg_name)[var_name].max() - data.groupby(sg_name)[var_name].min()
-        sg['n_i'] = data[sg_name].value_counts()
+    # 3. 공정능력지수 연산
+    if lsl is not None and usl is not None:
+        Cp = (usl - lsl) / (6 * sigma_within)
+        Cpk = min((usl - x_bar) / (3 * sigma_within), (x_bar - lsl) / (3 * sigma_within))
+        Pp = (usl - lsl) / (6 * sigma_overall)
+        Ppk = min((usl - x_bar) / (3 * sigma_overall), (x_bar - lsl) / (3 * sigma_overall))
+    else:
+        Cp, Cpk, Pp, Ppk = np.nan, np.nan, np.nan, np.nan
         
+    return {
+        'Cp': Cp, 'Cpk': Cpk, 'Pp': Pp, 'Ppk': Ppk,
+        'x_bar': x_bar, 'sigma_within': sigma_within, 'sigma_overall': sigma_overall
+    }
+
+
+# ==========================================
+# 4. 계량형 관리도 연산 모듈 (UI 함수명 동기화)
+# ==========================================
+
+def generate_value_chart_data(df, sg_col, val_col, chart_type='Xbar-R', window=3):
+    """
+    Xbar-R, Xbar-s, I-MR 관리도용 관리한계선 데이터프레임을 생성합니다.
+    """
+    df_clean = df.dropna(subset=[sg_col, val_col])
+    sg = pd.DataFrame()
+    sg['Xbar'] = df_clean.groupby(sg_col)[val_col].mean()
+    sg['n_i'] = df_clean.groupby(sg_col)[val_col].size()
+    subgroup_indices = sg.index
+    m_size = int(sg['n_i'].mode().iloc[0]) if not sg['n_i'].empty else 5
+
+    if chart_type == 'Xbar-R':
+        sg['R'] = df_clean.groupby(sg_col)[val_col].apply(lambda x: x.max() - x.min())
         Xbar_bar = sg['Xbar'].mean()
         R_bar = sg['R'].mean()
-        m_val = sg['n_i'].mode().iloc[0] if not sg['n_i'].mode().empty else 5
         
-        A2 = unbiased_coefficient('A2', m_val)
-        D3 = unbiased_coefficient('D3', m_val)
-        D4 = unbiased_coefficient('D4', m_val)
+        A2 = unbiased_coefficient_fallback('A2', m_size)
+        D3 = unbiased_coefficient_fallback('D3', m_size)
+        D4 = unbiased_coefficient_fallback('D4', m_size)
         
-        Xbar_chart = pd.DataFrame(index=sg.index)
-        Xbar_chart['point'] = sg['Xbar']
-        Xbar_chart['CL'] = Xbar_bar
-        Xbar_chart['LCL'] = Xbar_bar - A2 * R_bar
-        Xbar_chart['UCL'] = Xbar_bar + A2 * R_bar
-        
-        R_chart = pd.DataFrame(index=sg.index)
-        R_chart['point'] = sg['R']
-        R_chart['CL'] = R_bar
-        R_chart['LCL'] = D3 * R_bar
-        R_chart['UCL'] = D4 * R_bar
-        
-        return Xbar_chart, R_chart
+        chart1 = pd.DataFrame({'point': sg['Xbar'], 'CL': Xbar_bar, 'LCL': Xbar_bar - A2 * R_bar, 'UCL': Xbar_bar + A2 * R_bar}, index=subgroup_indices)
+        chart2 = pd.DataFrame({'point': sg['R'], 'CL': R_bar, 'LCL': D3 * R_bar, 'UCL': D4 * R_bar}, index=subgroup_indices)
+        return chart1, chart2
 
     elif chart_type == 'Xbar-s':
-        sg = pd.DataFrame()
-        sg['Xbar'] = data.groupby(sg_name)[var_name].mean()
-        sg['s'] = data.groupby(sg_name)[var_name].std(ddof=1).fillna(0)
-        sg['n_i'] = data[sg_name].value_counts()
-        
+        sg['s'] = df_clean.groupby(sg_col)[val_col].std(ddof=1).fillna(0)
         Xbar_bar = sg['Xbar'].mean()
         s_bar = sg['s'].mean()
-        m_val = sg['n_i'].mode().iloc[0] if not sg['n_i'].mode().empty else 5
         
-        A3 = unbiased_coefficient('A3', m_val)
-        B3 = unbiased_coefficient('B3', m_val)
-        B4 = unbiased_coefficient('B4', m_val)
+        A3 = unbiased_coefficient_fallback('A3', m_size)
+        B3 = unbiased_coefficient_fallback('B3', m_size)
+        B4 = unbiased_coefficient_fallback('B4', m_size)
         
-        Xbar_chart = pd.DataFrame(index=sg.index)
-        Xbar_chart['point'] = sg['Xbar']
-        Xbar_chart['CL'] = Xbar_bar
-        Xbar_chart['LCL'] = Xbar_bar - A3 * s_bar
-        Xbar_chart['UCL'] = Xbar_bar + A3 * s_bar
-        
-        s_chart = pd.DataFrame(index=sg.index)
-        s_chart['point'] = sg['s']
-        s_chart['CL'] = s_bar
-        s_chart['LCL'] = B3 * s_bar
-        s_chart['UCL'] = B4 * s_bar
-        
-        return Xbar_chart, s_chart
+        chart1 = pd.DataFrame({'point': sg['Xbar'], 'CL': Xbar_bar, 'LCL': Xbar_bar - A3 * s_bar, 'UCL': Xbar_bar + A3 * s_bar}, index=subgroup_indices)
+        chart2 = pd.DataFrame({'point': sg['s'], 'CL': s_bar, 'LCL': B3 * s_bar, 'UCL': B4 * s_bar}, index=subgroup_indices)
+        return chart1, chart2
 
     elif chart_type == 'I-MR':
-        sg = data.set_index(sg_name).sort_index()
-        w = window
+        df_sort = df_clean.set_index(sg_col).sort_index()
+        Xbar = df_sort[val_col].mean()
+        MR_i = df_sort[val_col].rolling(window=window).apply(lambda x: x.max() - x.min(), raw=True)
+        MR_bar = MR_i.dropna().mean()
         
-        Xbar = sg[var_name].mean()
-        MR_i = sg[var_name].rolling(window=w).apply(lambda x: x.max() - x.min(), raw=True)
-        MR_bar = MR_i.iloc[w-1:].mean()
-        
-        D3 = unbiased_coefficient('D3', w)
-        D4 = unbiased_coefficient('D4', w)
-        d2 = unbiased_coefficient('d2', w)
+        D3 = unbiased_coefficient_fallback('D3', window)
+        D4 = unbiased_coefficient_fallback('D4', window)
+        d2 = unbiased_coefficient_fallback('d2', window)
         if d2 == 0 or d2 is None: d2 = 1.128
         
-        I_chart = pd.DataFrame(index=sg.index)
-        I_chart['point'] = sg[var_name]
-        I_chart['CL'] = Xbar
-        I_chart['LCL'] = Xbar - 3 * MR_bar / d2
-        I_chart['UCL'] = Xbar + 3 * MR_bar / d2
+        chart1 = pd.DataFrame({'point': df_sort[val_col], 'CL': Xbar, 'LCL': Xbar - 3 * MR_bar / d2, 'UCL': Xbar + 3 * MR_bar / d2}, index=df_sort.index)
+        chart2 = pd.DataFrame({'point': MR_i, 'CL': MR_bar, 'LCL': D3 * MR_bar, 'UCL': D4 * MR_bar}, index=df_sort.index)
+        return chart1, chart2
         
-        MR_chart = pd.DataFrame(index=sg.index)
-        MR_chart['point'] = MR_i
-        MR_chart['CL'] = MR_bar
-        MR_chart['LCL'] = D3 * MR_bar
-        MR_chart['UCL'] = D4 * MR_bar
-        
-        return I_chart, MR_chart
-        
-    return None
+    return None, None
 
 
 # ==========================================
-# 5. 계수형 관리도(Attribute Control Chart) 모듈
+# 5. 계수형 관리도 연산 모듈
 # ==========================================
 
 def generate_count_chart(df_raw, sg_name, n_i, var_name, chart_type='NP'):
     """
-    NP, P, C, U 관리도의 관리한계선을 계산하며, 표본 크기 가변성에 대응합니다.
+    NP, P, C, U 관리도의 동적 관리한계선을 계산하며 계수형 품질을 진단합니다.
     """
     data = df_raw.set_index(sg_name)
     
@@ -277,8 +229,6 @@ def generate_count_chart(df_raw, sg_name, n_i, var_name, chart_type='NP'):
         P_chart = pd.DataFrame(index=data.index)
         P_chart['point'] = data[var_name] / data[n_i]
         P_chart['CL'] = p_bar
-        
-        # 가변 표본 크기 시리즈(data[n_i])에 대응하는 동적 UCL/LCL 한계선 연산 적용
         P_chart['LCL'] = p_bar - 3 * np.sqrt(p_bar * (1 - p_bar) / data[n_i])
         P_chart['UCL'] = p_bar + 3 * np.sqrt(p_bar * (1 - p_bar) / data[n_i])
         
@@ -303,8 +253,6 @@ def generate_count_chart(df_raw, sg_name, n_i, var_name, chart_type='NP'):
         U_chart = pd.DataFrame(index=data.index)
         U_chart['point'] = data[var_name] / data[n_i]
         U_chart['CL'] = u_bar
-        
-        # 가변 표본 크기 시리즈(data[n_i])에 대응하는 단위당 결함률 UCL/LCL 동적 공식 연산 적용
         U_chart['LCL'] = u_bar - 3 * np.sqrt(u_bar / data[n_i])
         U_chart['UCL'] = u_bar + 3 * np.sqrt(u_bar / data[n_i])
         
