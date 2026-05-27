@@ -121,3 +121,42 @@ def generate_value_chart_data(data, sg_col, val_col, chart_type='Xbar-R', window
         chart2 = pd.DataFrame({'point': MR_i, 'CL': MR_bar, 'LCL': D3 * MR_bar, 'UCL': D4 * MR_bar}, index=df_clean.index)
         return chart1, chart2
     return None, None
+
+def generate_attribute_chart_data(data, sg_col, val_col, chart_type='P'):
+    """[누락 수식 복구완료] 계수형 관리도의 표본 크기 가변 대응 통계 공식 계산 엔진"""
+    df_clean = data.dropna(subset=[sg_col, val_col])
+    
+    # 부분군별 데이터 카운팅 및 집계 처리
+    summary = df_clean.groupby(sg_col).agg(
+        defects_sum=(val_col, lambda x: np.sum(x > x.mean())), # 임계치 초과를 불량으로 가집계
+        total_count=(val_col, 'count')
+    )
+    
+    indices = summary.index.tolist()
+    n_i = summary['total_count'].values
+    d_i = summary['defects_sum'].values
+    
+    if chart_type == 'P':
+        p_bar = d_i.sum() / n_i.sum() if n_i.sum() > 0 else 0.02
+        p_i = np.where(n_i > 0, d_i / n_i, 0)
+        ucl = p_bar + 3 * np.sqrt(p_bar * (1 - p_bar) / n_i)
+        lcl = np.clip(p_bar - 3 * np.sqrt(p_bar * (1 - p_bar) / n_i), 0, 1)
+        return pd.DataFrame({'point': p_i, 'CL': p_bar, 'LCL': lcl, 'UCL': ucl}, index=indices)
+        
+    elif chart_type == 'NP':
+        p_bar = d_i.sum() / n_i.sum() if n_i.sum() > 0 else 0.02
+        np_bar = d_i.mean()
+        ucl = np_bar + 3 * np.sqrt(np_bar * (1 - p_bar))
+        lcl = np.clip(np_bar - 3 * np.sqrt(np_bar * (1 - p_bar)), 0, None)
+        return pd.DataFrame({'point': d_i, 'CL': np_bar, 'LCL': lcl, 'UCL': ucl}, index=indices)
+        
+    elif chart_type == 'C':
+        c_bar = d_i.mean()
+        ucl = c_bar + 3 * np.sqrt(c_bar)
+        lcl = np.clip(c_bar - 3 * np.sqrt(c_bar), 0, None)
+        return pd.DataFrame({'point': d_i, 'CL': c_bar, 'LCL': lcl, 'UCL': ucl}, index=indices)
+        
+    elif chart_type == 'U':
+        u_bar = d_i.sum() / n_i.sum() if n_i.sum() > 0 else 1.0
+        u_i = np.where(n_i > 0, d_i / (n_i / n_i.mean()), 0) # 단위 면적 보정 계산식
+        ucl = u_bar + 3 * np.sqrt(u_bar / (
