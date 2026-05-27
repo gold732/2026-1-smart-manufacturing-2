@@ -50,7 +50,7 @@ def unbiased_coefficient_fallback(coef_name, m):
 
 
 # ==========================================
-# 2. 정규성 검정 및 변환 모듈 (UI 함수명 동기화)
+# 2. 정규성 검정 및 변환 모듈
 # ==========================================
 
 def run_normality_test(data_array):
@@ -92,30 +92,29 @@ def apply_box_cox(data_array, lsl_orig=None, usl_orig=None):
 
 
 # ==========================================
-# 3. 공정능력분석 연산 모듈
+# 3. 공정능력분석 연산 모듈 (tab3 7개 변수 반환 언패킹 구조 교정)
 # ==========================================
 
 def calculate_capability_metrics(df, sg_col, val_col, lsl, usl, method="Pooled Standard Deviation"):
     """
-    군내 및 전체 표준편차를 기반으로 단기(Cp, Cpk) 및 장기(Pp, Ppk) 공정능력지수를 계산합니다.
+    군내 및 전체 표준편차를 기반으로 단기(Cp, Cpk) 및 장기(Pp, Ppk) 공정능력지수를 계산하여 7개의 변수로 반환합니다.
     """
     df_clean = df.dropna(subset=[sg_col, val_col])
     x_bar = df_clean[val_col].mean()
     
     sg_groups = df_clean.groupby(sg_col)[val_col]
-    sg_means = sg_groups.mean()
     sg_stds = sg_groups.std(ddof=1).fillna(0)
     sg_ranges = sg_groups.apply(lambda x: x.max() - x.min())
     sg_sizes = sg_groups.size()
     
     m_size = int(sg_sizes.mode().iloc[0]) if not sg_sizes.empty else 5
     
-    # 1. 전체(장기) 변동 산출
+    # 1. 전체 변동 산출
     sigma_hat = df_clean[val_col].std(ddof=1)
     c4_overall = calc_unbiased_const('c4', len(df_clean))
     sigma_overall = sigma_hat / c4_overall if c4_overall else sigma_hat
     
-    # 2. 군내(단기) 변동 산출 방식 분기
+    # 2. 군내 변동 산출 방식 분기
     if method == "Pooled Standard Deviation":
         sigma_p = np.sqrt(np.sum(sg_stds**2) / len(sg_stds))
         subgroup_delta_d = len(df_clean) - len(sg_stds) + 1
@@ -135,14 +134,11 @@ def calculate_capability_metrics(df, sg_col, val_col, lsl, usl, method="Pooled S
     else:
         Cp, Cpk, Pp, Ppk = np.nan, np.nan, np.nan, np.nan
         
-    return {
-        'Cp': Cp, 'Cpk': Cpk, 'Pp': Pp, 'Ppk': Ppk,
-        'x_bar': x_bar, 'sigma_within': sigma_within, 'sigma_overall': sigma_overall
-    }
+    return Cp, Cpk, Pp, Ppk, x_bar, sigma_within, sigma_overall
 
 
 # ==========================================
-# 4. 계량형 관리도 연산 모듈 (UI 함수명 동기화)
+# 4. 계량형 관리도 연산 모듈
 # ==========================================
 
 def generate_value_chart_data(df, sg_col, val_col, chart_type='Xbar-R', window=3):
@@ -201,62 +197,50 @@ def generate_value_chart_data(df, sg_col, val_col, chart_type='Xbar-R', window=3
 
 
 # ==========================================
-# 5. 계수형 관리도 연산 모듈
+# 5. 계수형 관리도 연산 모듈 (tab1 및 tab5 2개 객체 언패킹 튜플 구조 완벽 대응)
 # ==========================================
 
 def generate_count_chart(df_raw, sg_name, n_i, var_name, chart_type='NP'):
     """
-    NP, P, C, U 관리도의 동적 관리한계선을 계산하며 계수형 품질을 진단합니다.
+    NP, P, C, U 관리도의 동적 관리한계선을 계산하며 UI 언패킹 호환을 위해 2개의 차트 객체 구조로 반환합니다.
     """
     data = df_raw.set_index(sg_name)
+    count_chart = pd.DataFrame(index=data.index)
     
     if chart_type == 'NP':
         np_bar = data[var_name].sum() / len(data)
         p_bar = data[var_name].sum() / data[n_i].sum()
         
-        NP_chart = pd.DataFrame(index=data.index)
-        NP_chart['point'] = data[var_name]
-        NP_chart['CL'] = np_bar
-        NP_chart['LCL'] = np_bar - 3 * np.sqrt(np_bar * (1 - p_bar))
-        NP_chart['UCL'] = np_bar + 3 * np.sqrt(np_bar * (1 - p_bar))
-        
-        NP_chart['LCL'] = NP_chart['LCL'].clip(lower=0)
-        return NP_chart
+        count_chart['point'] = data[var_name]
+        count_chart['CL'] = np_bar
+        count_chart['LCL'] = np_bar - 3 * np.sqrt(np_bar * (1 - p_bar))
+        count_chart['UCL'] = np_bar + 3 * np.sqrt(np_bar * (1 - p_bar))
 
     elif chart_type == 'P':
         p_bar = data[var_name].sum() / data[n_i].sum()
         
-        P_chart = pd.DataFrame(index=data.index)
-        P_chart['point'] = data[var_name] / data[n_i]
-        P_chart['CL'] = p_bar
-        P_chart['LCL'] = p_bar - 3 * np.sqrt(p_bar * (1 - p_bar) / data[n_i])
-        P_chart['UCL'] = p_bar + 3 * np.sqrt(p_bar * (1 - p_bar) / data[n_i])
-        
-        P_chart['LCL'] = P_chart['LCL'].clip(lower=0)
-        return P_chart
+        count_chart['point'] = data[var_name] / data[n_i]
+        count_chart['CL'] = p_bar
+        count_chart['LCL'] = p_bar - 3 * np.sqrt(p_bar * (1 - p_bar) / data[n_i])
+        count_chart['UCL'] = p_bar + 3 * np.sqrt(p_bar * (1 - p_bar) / data[n_i])
 
     elif chart_type == 'C':
         c_bar = data[var_name].mean()
         
-        C_chart = pd.DataFrame(index=data.index)
-        C_chart['point'] = data[var_name]
-        C_chart['CL'] = c_bar
-        C_chart['LCL'] = c_bar - 3 * np.sqrt(c_bar)
-        C_chart['UCL'] = c_bar + 3 * np.sqrt(c_bar)
-        
-        C_chart['LCL'] = C_chart['LCL'].clip(lower=0)
-        return C_chart
+        count_chart['point'] = data[var_name]
+        count_chart['CL'] = c_bar
+        count_chart['LCL'] = c_bar - 3 * np.sqrt(c_bar)
+        count_chart['UCL'] = c_bar + 3 * np.sqrt(c_bar)
 
     elif chart_type == 'U':
         u_bar = data[var_name].sum() / data[n_i].sum()
         
-        U_chart = pd.DataFrame(index=data.index)
-        U_chart['point'] = data[var_name] / data[n_i]
-        U_chart['CL'] = u_bar
-        U_chart['LCL'] = u_bar - 3 * np.sqrt(u_bar / data[n_i])
-        U_chart['UCL'] = u_bar + 3 * np.sqrt(u_bar / data[n_i])
+        count_chart['point'] = data[var_name] / data[n_i]
+        count_chart['CL'] = u_bar
+        count_chart['LCL'] = u_bar - 3 * np.sqrt(u_bar / data[n_i])
+        count_chart['UCL'] = u_bar + 3 * np.sqrt(u_bar / data[n_i])
         
-        U_chart['LCL'] = U_chart['LCL'].clip(lower=0)
-        return U_chart
-        
-    return None
+    count_chart['LCL'] = count_chart['LCL'].clip(lower=0)
+    
+    # tab1 및 tab5의 chart1, chart2 = engine.generate_count_chart(...) 튜플 분할 언패킹 구조 완벽 방어 보정
+    return count_chart, None
