@@ -19,11 +19,6 @@ def render(df_raw, sg_col, val_col):
     with chart_col2:
         if ooc_points:
             st.error(f"🚨 [이상 원인 포착] 관리 한계를 이탈한 이상 변동 부분군 발견: {ooc_points}")
-            exclude_ooc = st.checkbox("이상 부분군 제거 후 관리 한계선 재산출 반영")
-            if exclude_ooc:
-                cleaned_df = df_raw[~df_raw[sg_col].isin(ooc_points)].copy()
-                chart1, chart2 = engine.generate_value_chart_data(cleaned_df, sg_col, val_col, chart_type=chart_mode, window=window_param)
-                st.success("🔄 정제 완료: 부적합 변동 원인을 제외한 새로운 안정 관리선이 적용되었습니다.")
         else:
             st.success("🎯 모든 공정 계측점이 관리 한계선 내부에서 안정적으로 구동 중입니다.")
 
