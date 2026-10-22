@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+from upload_loader import UploadError, load_uploaded_data
 from tabs import tab1_summary, tab2_norm, tab3_capability, tab4_spc, tab5_attribute
 
 st.set_page_config(layout="wide", page_title="공정품질 분석 대시보드")
@@ -23,7 +24,14 @@ def load_lecture_pvc_data():
     return df_wide.melt(var_name='prod_line', value_name='viscocity')
 
 uploaded_file = st.sidebar.file_uploader("CSV 혹은 엑셀 파일 업로드", type=["csv", "xlsx"])
-df_raw = pd.read_csv(uploaded_file) if uploaded_file else load_lecture_pvc_data()
+if uploaded_file is not None:
+    try:
+        df_raw = load_uploaded_data(uploaded_file)
+    except UploadError as exc:
+        st.error(f"파일 업로드 오류: {exc}")
+        st.stop()
+else:
+    df_raw = load_lecture_pvc_data()
 
 all_cols = df_raw.columns.tolist()
 sg_col = st.sidebar.selectbox("부분군(Subgroup) 식별 컬럼 선택", all_cols, index=0)
